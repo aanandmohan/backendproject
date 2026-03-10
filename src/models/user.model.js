@@ -92,4 +92,4 @@ UserSchema.methods.generateAccessToken= function(){
     )
 }
 
-const User= mongoose.model("User",UserSchema)
+export const User= mongoose.model("User",UserSchema)

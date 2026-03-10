@@ -1,6 +1,7 @@
 import {asyncHandler} from '../utils/asyncHandler.js';
 import{Apierror} from '../utils/apiError.js';
-import User from '../models/user.model.js';
+//import User from '../models/user.model.js';
+import{User} from '../models/user.model.js';
 import { uploadOnCloudinary } from '../utils/cloudinary.js';
 import{ApiResponse} from '../utils/apiResponse.js';
 
@@ -30,14 +31,15 @@ const registerUser = asyncHandler(async ( req,res)=>{
     })
 
     if(existedUser){
-        throw new Apierror(401,"user already exit with this username or email")
+        throw new Apierror(409,"user already exit with this username or email")
 
     }
+    console.log("files",req.files);
 
    const avatarLocalPath = req.files?.avatar[0]?.path;
-  const   coverImageLocalPath = req.files?.coverImage[0]?.path;
+   const   coverImageLocalPath = req.files?.coverImage[0]?.path;
 
-  if(avatarLocalPath){
+  if(!avatarLocalPath){
     throw new Apierror(400,"avatar file is required")
   }
 
@@ -45,7 +47,7 @@ const registerUser = asyncHandler(async ( req,res)=>{
   const coverImage= await uploadOnCloudinary(coverImageLocalPath);
 
   if(!avatar){
-    throw new Apierror(500,"avatar pload failed tr again later")
+    throw new Apierror(400,"avatar pload failed tr again later")
   }
     const user= await User.create({
         fullname,
@@ -57,13 +59,13 @@ const registerUser = asyncHandler(async ( req,res)=>{
      })
 
     const  createdUser= await User.findById(user._id).select(
-        " - password -refreshToken"
+        "- password -refreshToken"
     )
     if(!createdUser){
         throw new Apierror(500,"something went wrong")
     }
-   res.status(201).json(
-    new ApiResponse(201,"user created successfully",createdUser)
+ return  res.status(201).json(
+    new ApiResponse(201,createdUser,"user created successfully")
    )
 
 })
