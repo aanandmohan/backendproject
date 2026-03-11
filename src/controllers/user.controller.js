@@ -70,4 +70,96 @@ const registerUser = asyncHandler(async ( req,res)=>{
 
 })
 
-export {registerUser}
+const generateAccessTokenAndRefreshToken= async(userid){
+  try {
+      const user= await User.findById(userid);
+      const accessToken= user.generateAccessToken();
+      const refreshToken= user.generateRefreshToken();
+     user.refreshToken= refreshToken;
+     await user.save({
+    validateBeforeSave:false
+     });
+
+     return { accessToken,refreshToken}
+
+
+
+  } catch (error) {
+    throw new Apierror(500,"something went wrong while generating access toekn")
+    
+  }
+}
+
+const loginUser= asyncHandler(async(req,res)=>{
+    const {email,username,password}= req.body;
+
+    if(!username || !email){
+        throw new Apierror(400,"email and username is required")
+    }
+     const user= await   User.findOne({
+            $or:[{email},{username}]
+        })
+
+        if(!user){
+            throw new Apierror(404,"user not found with this email or username")
+        }
+
+    const ispasswordValid= await user.ispasswordCorrect(password)  ;
+    if(!ispasswordValid){
+        throw new Apierror(401,"invalid password")
+    }
+
+   const{accessToken,refreshToken} = await generateAccessTokenAndRefreshToken(user._id);
+   const LoggedInUser= await User.findById(user._id)
+   .select("password -refreshToken")  
+
+
+   const options={
+    httpOnly:true,
+    secure: true
+   }
+
+   return res.status(200)
+   .cookie("refreshToken",refreshToken,options)
+   .cookie("accessToken",accessToken,options)
+   .json(
+    new ApiResponse(200,
+        {
+            user:LoggedInUser,accessToken,refreshToken
+
+        },
+
+        "user logged in successfully"
+   )
+) 
+
+})
+
+const LogoutUser= asyncHandler(async(req, res)=>{
+   await User.findByIdAndUpdate(req.user._id,
+    {
+       $set:{
+        refreshToken:undefined
+       }
+    },
+    {
+        new:true
+    })
+
+    const options={
+    httpOnly:true,
+    secure: true
+   }
+
+   return res.status(200)
+   .clearCookie("refreshToken",options)
+   .clearCookie("accessToken",options)
+   .json(
+    new ApiResponse(200,null,"user logged out successfully")    
+   )
+})
+
+export {registerUser,
+         loginUser,
+            LogoutUser
+        }
